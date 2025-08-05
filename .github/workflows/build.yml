@@ -1,0 +1,97 @@
+name: 构建插件
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Build with Maven
+      run: mvn clean package
+      
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: anarchycore-build
+        path: |
+          target/*.jar
+          !target/*-sources.jar
+          !target/*-javadoc.jar
+        retention-days: 7
+          
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: anarchycore-build
+        path: target
+        
+    - name: Archive Plugin Files
+      run: |
+        mkdir plugin
+        cp target/*.jar plugin/AnarchyCore.jar
+        cp src/main/resources/*.yml plugin/
+        cp src/main/resources/plugin.yml plugin/
+        
+    - name: Test Plugin Package
+      run: |
+        echo "Testing plugin structure..."
+        jar -tvf plugin/AnarchyCore.jar | grep "AnarchyCore.class"
+        jar -tvf plugin/AnarchyCore.jar | grep "plugin.yml"
+        ls -la plugin/
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: plugin-package
+        path: plugin
+        retention-days: 7
+        
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'workflow_dispatch' # 仅手动触发时运行
+    
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: plugin-package
+        path: release
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/AnarchyCore.jar
+        asset_name: AnarchyCore.jar
+        asset_content_type: application/java-archive

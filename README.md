@@ -3,12 +3,8 @@
 
 
 ## 剧透
-````markdown
-```yaml
-config.yml
-内容
-内容
-```
+````yaml
+aaa
 ````
 
 ## 开源协议

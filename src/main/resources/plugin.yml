@@ -1,0 +1,18 @@
+name: AnarchyCore-CN
+version: 1.0
+author: Traveler114514
+main: com.traveler.AnarchyCore.AnarchyCore
+api-version: 1.20
+commands:
+  dupe:
+    description: Duplicate held item
+    usage: /dupe
+    aliases: [duplicate,dp]
+  anarchycore:
+    description: Reload AnarchyCore configuration
+    usage: /anarchycore
+    permission: anarchycore.reload
+permissions:
+  anarchycore.reload:
+    description: Allows reloading of AnarchyCore
+    default: op

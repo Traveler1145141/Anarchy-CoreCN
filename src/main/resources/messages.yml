@@ -1,0 +1,15 @@
+# 所有消息都支持颜色代码(&)
+errors:
+  player-only: "&cOnly players can use this command."
+  command-disabled: "&cThis feature is disabled."
+  
+dupe:
+  disabled: "&cDupe command is disabled."
+  no-item: "&cYou must hold an item to duplicate."
+  success: "&aItem duplicated!"
+  cooldown: "&cCooldown: {time} seconds remaining."
+  
+shulker:
+  disabled: "&cShulker duplication is disabled."
+  progress: "&eDupe progress: {current}/{required}"
+  success: "&aShulker duplicated! (Progress reset)"

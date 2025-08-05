@@ -1,4 +1,4 @@
-name: 构建插件
+name: 构建
 
 on:
   workflow_dispatch:
@@ -21,58 +21,30 @@ jobs:
     - name: Build with Maven
       run: mvn clean package
       
-    - name: Upload Artifact
+    - name: Prepare Release Assets
+      run: |
+        mkdir release
+        cp target/*.jar release/AnarchyCore.jar
+        cp src/main/resources/*.yml release/
+        cp src/main/resources/plugin.yml release/
+        
+    - name: Upload Release Assets
       uses: actions/upload-artifact@v4
       with:
-        name: anarchycore-build
-        path: |
-          target/*.jar
-          !target/*-sources.jar
-          !target/*-javadoc.jar
-        retention-days: 7
-          
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    
-    steps:
-    - name: Download Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: anarchycore-build
-        path: target
-        
-    - name: Archive Plugin Files
-      run: |
-        mkdir plugin
-        cp target/*.jar plugin/AnarchyCore.jar
-        cp src/main/resources/*.yml plugin/
-        cp src/main/resources/plugin.yml plugin/
-        
-    - name: Test Plugin Package
-      run: |
-        echo "Testing plugin structure..."
-        jar -tvf plugin/AnarchyCore.jar | grep "AnarchyCore.class"
-        jar -tvf plugin/AnarchyCore.jar | grep "plugin.yml"
-        ls -la plugin/
-        
-    - name: Upload Test Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: plugin-package
-        path: plugin
+        name: release-assets
+        path: release
         retention-days: 7
         
   release:
     runs-on: ubuntu-latest
-    needs: [build, test]
-    if: github.event_name == 'workflow_dispatch' # 仅手动触发时运行
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     
     steps:
-    - name: Download Artifact
+    - name: Download Release Assets
       uses: actions/download-artifact@v4
       with:
-        name: plugin-package
+        name: release-assets
         path: release
         
     - name: Create Release
@@ -85,8 +57,13 @@ jobs:
         release_name: Release v${{ github.run_number }}
         draft: false
         prerelease: false
-        
-    - name: Upload Release Asset
+        body: |
+          AnarchyCore Plugin Build
+          - Build Number: ${{ github.run_number }}
+          - Commit: ${{ github.sha }}
+          - Triggered by: ${{ github.event_name }}
+          
+    - name: Upload Plugin JAR
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,3 +72,33 @@ jobs:
         asset_path: ./release/AnarchyCore.jar
         asset_name: AnarchyCore.jar
         asset_content_type: application/java-archive
+        
+    - name: Upload Config Files
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/config.yml
+        asset_name: config.yml
+        asset_content_type: text/yaml
+        
+    - name: Upload Messages File
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/messages.yml
+        asset_name: messages.yml
+        asset_content_type: text/yaml
+        
+    - name: Upload Plugin File
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/plugin.yml
+        asset_name: plugin.yml
+        asset_content_type: text/yaml

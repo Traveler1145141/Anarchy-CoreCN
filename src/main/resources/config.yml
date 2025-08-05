@@ -1,12 +1,25 @@
-# Dupe命令设置
+# config.yml
+# 主配置文件
 dupe:
-  # 是否开启/dupe命令复制
+  # 是否启用/dupe复制命令
   enable: true
-  # 冷却时间，单位：（秒）
+  # 复制冷却时间（秒）
   cooldown: 20
-#n+1
+
 shulker_dupe:
-  # 是否开启n+1
+  # 是否启用潜影盒复制功能
   enable: true
-  # 玩家需要挖掉多少个潜影盒才能复制，单位：（个）
+  # 需要挖掘多少个潜影盒才会触发复制
   break: 10
+  
+# 禁止使用的命令列表
+# 所有玩家（包括OP）将无法使用这些命令，但控制台仍可使用
+ban-command:
+  - ban-ip
+  - ban
+  - op
+  - deop
+  - kill
+  - stop
+  - restart
+  - whitelist

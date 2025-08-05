@@ -1,0 +1,12 @@
+# Dupe命令设置
+dupe:
+  # 是否开启/dupe命令复制
+  enable: true
+  # 冷却时间，单位：（秒）
+  cooldown: 20
+#n+1
+shulker_dupe:
+  # 是否开启n+1
+  enable: true
+  # 玩家需要挖掉多少个潜影盒才能复制，单位：（个）
+  break: 10

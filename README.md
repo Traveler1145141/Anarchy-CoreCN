@@ -5,18 +5,65 @@
 ## 剧透
 ### config.yml
 ````config.yml
-# Dupe命令设置
+# 主配置文件
 dupe:
-  # 是否开启/dupe命令复制
   enable: true
-  # 冷却时间，单位：（秒）
   cooldown: 20
-#n+1
+
 shulker_dupe:
-  # 是否开启n+1
   enable: true
-  # 玩家需要挖掉多少个潜影盒才能复制，单位：（个）
   break: 10
+  
+# 禁止使用的命令列表
+ban-command:
+  - ban-ip
+  - ban
+  - op
+
+# 反卡服配置
+anti-lag:
+  # 是否启用反卡服功能
+  enable: true
+  # 检查间隔（tick）
+  check-interval: 600
+  # TPS阈值，低于此值触发清理
+  tps-threshold: 15.0
+  # 是否清理掉落物
+  clear-dropped-items: true
+  # 是否清理怪物
+  clear-mobs: true
+  # 是否清理区块实体
+  clear-chunk-entities: true
+  # 实体存在时间阈值（tick）
+  entity-age-threshold: 12000
+  # 怪物存在时间阈值（tick）
+  mob-age-threshold: 6000
+  # 是否广播清理信息
+  broadcast-cleanup: true
+
+# 高频红石限制配置
+redstone:
+  # 是否启用高频红石限制
+  enable: true
+  # 最小激活间隔（毫秒），低于此值视为高频
+  min-interval: 100
+  # 是否向附近玩家发送警告
+  warn-player: true
+  # 红石记录过期时间（毫秒）
+  record-expire: 60000
+
+# 鞘翅平飞限制配置
+elytra:
+  # 是否启用鞘翅平飞限制（默认关闭）
+  enable: false
+  # 垂直速度阈值（绝对值小于此值视为平飞）
+  vertical-threshold: 0.05
+  # 回弹力度（向上速度）
+  bounce-strength: 0.5
+  # 回弹冷却时间（毫秒）
+  bounce-cooldown: 1000
+  # 是否向玩家发送警告消息
+  warn-player: true
 ````
 
 ## 开源协议

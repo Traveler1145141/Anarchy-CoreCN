@@ -16,3 +16,13 @@ shulker:
   
 reload:
   success: "&aAnarchyCore配置已重新载入！"
+  
+lagclean:
+  success: "&a已清理 {count} 个可能导致卡顿的实体。"
+  broadcast: "&e服务器清理了 {count} 个可能导致卡顿的实体 (当前TPS: {tps})"
+  
+redstone:
+  warning: "&c警告: 检测到高频红石！已自动禁用。"
+  
+elytra:
+  warning: "&c警告: 平飞已被禁止！"

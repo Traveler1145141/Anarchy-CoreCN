@@ -366,12 +366,12 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         
         if (config.getBoolean("anti-lag.clear-chunk-entities", true)) {
             for (World world : Bukkit.getWorlds()) {
-                world.getEntities().forEach(entity -> {
+                for (Entity entity : world.getEntities()) {
                     if (entity.getTicksLived() > config.getInt("anti-lag.entity-age-threshold", 12000)) {
                         entity.remove();
                         cleanedEntities++;
                     }
-                });
+                }
             }
         }
         

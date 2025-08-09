@@ -53,12 +53,8 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     public void onEnable() {
         saveDefaultConfig();
         config = getConfig();
-        
-        File messagesFile = new File(getDataFolder(), "messages.yml");
-        if (!messagesFile.exists()) {
-            saveResource("messages.yml", false);
-        }
-        messages = YamlConfiguration.loadConfiguration(messagesFile);
+        loadBannedCommands();
+        setupMessages();
         
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("dupe").setExecutor(this);
@@ -79,6 +75,21 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         }
         
         getLogger().info("插件已成功启用！");
+    }
+
+    private void setupMessages() {
+        File messagesFile = new File(getDataFolder(), "messages.yml");
+        if (!messagesFile.exists()) {
+            saveResource("messages.yml", false);
+        }
+        messages = YamlConfiguration.loadConfiguration(messagesFile);
+    }
+
+    private void loadBannedCommands() {
+        bannedCommands.clear();
+        for (String cmd : config.getStringList("ban-command")) {
+            bannedCommands.add(cmd.toLowerCase());
+        }
     }
 
     private void cleanupOldData() {
@@ -161,10 +172,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             return true;
         }
         
-        reloadConfig();
-        config = getConfig();
-        loadBannedCommands();
-        setupMessages();
+        reloadPlugin();
         sender.sendMessage(getMessage("reload.success"));
         return true;
     }
@@ -180,11 +188,11 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         return true;
     }
 
-    private void loadBannedCommands() {
-        bannedCommands.clear();
-        for (String cmd : config.getStringList("ban-command")) {
-            bannedCommands.add(cmd.toLowerCase());
-        }
+    private void reloadPlugin() {
+        reloadConfig();
+        config = getConfig();
+        loadBannedCommands();
+        setupMessages();
     }
 
     @EventHandler

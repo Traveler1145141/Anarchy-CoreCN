@@ -1,18 +1,31 @@
-name: AnarchyCore-CN
-version: 1.0
+name: AnarchyCore
+version: 1.1
 author: Traveler114514
 main: com.traveler.AnarchyCore.AnarchyCore
 api-version: 1.20
 commands:
   dupe:
-    description: Duplicate held item
+    description: 复制手中的物品
     usage: /dupe
     aliases: [duplicate,dp]
   anarchycore:
-    description: Reload AnarchyCore configuration
+    description: 重载插件配置
     usage: /anarchycore
-    permission: anarchycore.reload
+    aliases: [acore, reloadac]
+  lagclean:
+    description: 清理可能导致卡顿的实体
+    usage: /lagclean
+    aliases: [cleanlag, clearlag]
 permissions:
   anarchycore.reload:
-    description: Allows reloading of AnarchyCore
+    description: 允许重载AnarchyCore插件
     default: op
+  anarchycore.lagclean:
+    description: 允许使用lagclean命令
+    default: op
+events:
+  - BlockBreakEvent
+  - BlockPlaceEvent
+  - BlockRedstoneEvent
+  - PlayerCommandPreprocessEvent
+  - PlayerMoveEvent

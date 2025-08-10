@@ -51,6 +51,8 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
 
     @Override
     public void onEnable() {
+        printLogo();
+        
         saveDefaultConfig();
         config = getConfig();
         loadBannedCommands();
@@ -75,6 +77,21 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         }
         
         getLogger().info("插件已成功启用！");
+    }
+
+    private void printLogo() {
+        String[] logo = {
+            "    _                                    _                ____                                  ____   _   _ ",
+            "   / \\     _ __     __ _   _ __    ___  | |__    _   _   / ___|   ___    _ __    ___           / ___| | \\ | |",
+            "  / _ \\   | '_ \\   / _` | | '__|  / __| | '_ \\  | | | | | |      / _ \\  | '__|  / _ \\  _____  | |     |  \\| |",
+            " / ___ \\  | | | | | (_| | | |    | (__  | | | | | |_| | | |___  | (_) | | |    |  __/ |_____| | |___  | |\\  |",
+            "/_/   \\_\\ |_| |_|  \\__,_| |_|     \\___| |_| |_|  \\__, |  \\____|  \\___/  |_|     \\___|          \\____| |_| \\_|",
+            "                                                 |___/                                                       "
+        };
+        
+        for (String line : logo) {
+            getLogger().info(line);
+        }
     }
 
     private void setupMessages() {
@@ -115,6 +132,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         if (type.toString().endsWith("SHULKER_BOX")) {
             UUID playerId = event.getPlayer().getUniqueId();
             shulkerBreakCounts.remove(playerId);
+            
+            if (config.getBoolean("logging.shulker-reset", true)) {
+                getLogger().info("玩家 " + event.getPlayer().getName() + " 放置了潜影盒，重置进度");
+            }
         }
     }
 
@@ -163,6 +184,11 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         player.sendMessage(getMessage("dupe.success"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
         cooldowns.put(playerId, currentTime);
+        
+        if (config.getBoolean("logging.dupe", true)) {
+            getLogger().info("玩家 " + player.getName() + " 复制了物品: " + handItem.getType());
+        }
+        
         return true;
     }
     
@@ -174,6 +200,11 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         
         reloadPlugin();
         sender.sendMessage(getMessage("reload.success"));
+        
+        if (config.getBoolean("logging.reload", true)) {
+            getLogger().info("插件配置已重新加载");
+        }
+        
         return true;
     }
     
@@ -185,6 +216,11 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         
         int cleaned = performLagCleanup();
         sender.sendMessage(getMessage("lagclean.success").replace("{count}", String.valueOf(cleaned)));
+        
+        if (config.getBoolean("logging.lagclean", true)) {
+            getLogger().info("手动清理了 " + cleaned + " 个可能导致卡顿的实体");
+        }
+        
         return true;
     }
 
@@ -214,6 +250,11 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                     .replace("{current}", String.valueOf(currentCount))
                     .replace("{required}", String.valueOf(requiredBreaks));
             player.sendMessage(msg);
+            
+            if (config.getBoolean("logging.shulker-progress", true)) {
+                getLogger().info("玩家 " + player.getName() + " 挖掘潜影盒进度: " + currentCount + "/" + requiredBreaks);
+            }
+            
             return;
         }
         
@@ -231,6 +272,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 player.getWorld().dropItemNaturally(event.getBlock().getLocation(), newBox);
                 player.sendMessage(getMessage("shulker.success"));
                 player.playSound(event.getBlock().getLocation(), Sound.BLOCK_SHULKER_BOX_OPEN, 1.0f, 1.0f);
+                
+                if (config.getBoolean("logging.shulker-dupe", true)) {
+                    getLogger().info("玩家 " + player.getName() + " 成功复制了潜影盒");
+                }
             }
         }.runTaskLater(this, 1L);
     }
@@ -243,6 +288,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             if (bannedCommands.contains(command)) {
                 event.setCancelled(true);
                 event.getPlayer().sendMessage(getMessage("errors.command-disabled"));
+                
+                if (config.getBoolean("logging.command-block", true)) {
+                    getLogger().info("阻止玩家 " + event.getPlayer().getName() + " 使用禁用命令: /" + command);
+                }
             }
         }
     }
@@ -257,6 +306,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             event.setNewCurrent(0);
             if (config.getBoolean("redstone.warn-player", true)) {
                 warnNearbyPlayers(block);
+            }
+            
+            if (config.getBoolean("logging.redstone-block", true)) {
+                getLogger().info("在位置 " + block.getLocation() + " 检测并阻止了高频红石");
             }
         }
     }
@@ -317,6 +370,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             }
             
             elytraBounceTimes.put(playerId, currentTime);
+            
+            if (config.getBoolean("logging.elytra-bounce", true)) {
+                getLogger().info("玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹");
+            }
         }
     }
     
@@ -380,6 +437,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 .replace("{count}", String.valueOf(cleanedEntities))
                 .replace("{tps}", String.format("%.2f", lastTPS));
             Bukkit.broadcastMessage(message);
+        }
+        
+        if (cleanedEntities > 0 && config.getBoolean("logging.lagclean", true)) {
+            getLogger().info("自动清理了 " + cleanedEntities + " 个可能导致卡顿的实体 (当前TPS: " + lastTPS + ")");
         }
         
         return cleanedEntities;

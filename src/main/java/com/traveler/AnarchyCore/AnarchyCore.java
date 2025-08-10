@@ -42,7 +42,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     private FileConfiguration config;
     private FileConfiguration messages;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
-    private final Map<UUID, Integer> shulkerBreakCounts = new HashMap<>();
+    private final Map<UUID, Integer> shulkerCycleCounts = new HashMap<>();
     private final Set<String> bannedCommands = new HashSet<>();
     private final Map<Block, Long> redstoneActivationTimes = new HashMap<>();
     private final Map<UUID, Long> elytraBounceTimes = new HashMap<>();
@@ -80,13 +80,15 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     }
 
     private void printLogo() {
+        if (!config.getBoolean("logging.startup-logo", true)) return;
+        
         String[] logo = {
-            "    _                                    _                ____                                  ____   _   _ ",
-            "   / \\     _ __     __ _   _ __    ___  | |__    _   _   / ___|   ___    _ __    ___           / ___| | \\ | |",
-            "  / _ \\   | '_ \\   / _` | | '__|  / __| | '_ \\  | | | | | |      / _ \\  | '__|  / _ \\  _____  | |     |  \\| |",
-            " / ___ \\  | | | | | (_| | | |    | (__  | | | | | |_| | | |___  | (_) | | |    |  __/ |_____| | |___  | |\\  |",
-            "/_/   \\_\\ |_| |_|  \\__,_| |_|     \\___| |_| |_|  \\__, |  \\____|  \\___/  |_|     \\___|          \\____| |_| \\_|",
-            "                                                 |___/                                                       "
+        "    _                                    _                ____                       ",
+        "    / \     _ __     __ _   _ __    ___  | |__    _   _   / ___|   ___    _ __    ___ ",
+        "   / _ \   | '_ \   / _` | | '__|  / __| | '_ \  | | | | | |      / _ \  | '__|  / _ \",
+        "  / ___ \  | | | | | (_| | | |    | (__  | | | | | |_| | | |___  | (_) | | |    |  __/",
+        " /_/   \_\ |_| |_|  \__,_| |_|     \___| |_| |_|  \__, |  \____|  \___/  |_|     \___|",
+        "                                          |___/                               "
         };
         
         for (String line : logo) {
@@ -110,7 +112,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     }
 
     private void cleanupOldData() {
-        shulkerBreakCounts.entrySet().removeIf(entry -> 
+        shulkerCycleCounts.entrySet().removeIf(entry -> 
             Bukkit.getPlayer(entry.getKey()) == null
         );
         
@@ -131,10 +133,12 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         Material type = event.getBlock().getType();
         if (type.toString().endsWith("SHULKER_BOX")) {
             UUID playerId = event.getPlayer().getUniqueId();
-            shulkerBreakCounts.remove(playerId);
+            
+            // 玩家放置潜影盒时开始新循环
+            shulkerCycleCounts.put(playerId, shulkerCycleCounts.getOrDefault(playerId, 0) + 1);
             
             if (config.getBoolean("logging.shulker-reset", true)) {
-                getLogger().info("玩家 " + event.getPlayer().getName() + " 放置了潜影盒，重置进度");
+                getLogger().info("玩家 " + event.getPlayer().getName() + " 放置了潜影盒，开始新循环");
             }
         }
     }
@@ -217,8 +221,8 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         int cleaned = performLagCleanup();
         sender.sendMessage(getMessage("lagclean.success").replace("{count}", String.valueOf(cleaned)));
         
-        if (config.getBoolean("logging.lagclean", true)) {
-            getLogger().info("手动清理了 " + cleaned + " 个可能导致卡顿的实体");
+        if (config.getBoolean("logging.lagclean-manual", true)) {
+            getLogger().info("管理员 " + sender.getName() + " 手动清理了 " + cleaned + " 个实体");
         }
         
         return true;
@@ -240,25 +244,27 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
 
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-        int requiredBreaks = config.getInt("shulker_dupe.break", 10);
+        int requiredCycles = config.getInt("shulker_dupe.cycles", 10);
         
-        int currentCount = shulkerBreakCounts.getOrDefault(playerId, 0) + 1;
-        shulkerBreakCounts.put(playerId, currentCount);
+        int currentCycle = shulkerCycleCounts.getOrDefault(playerId, 0);
         
-        if (currentCount < requiredBreaks) {
+        if (currentCycle < requiredCycles) {
+            // 未达到循环次数，继续计数
+            shulkerCycleCounts.put(playerId, currentCycle + 1);
+            
             String msg = getMessage("shulker.progress")
-                    .replace("{current}", String.valueOf(currentCount))
-                    .replace("{required}", String.valueOf(requiredBreaks));
+                    .replace("{current}", String.valueOf(currentCycle + 1))
+                    .replace("{required}", String.valueOf(requiredCycles));
             player.sendMessage(msg);
             
             if (config.getBoolean("logging.shulker-progress", true)) {
-                getLogger().info("玩家 " + player.getName() + " 挖掘潜影盒进度: " + currentCount + "/" + requiredBreaks);
+                getLogger().info("玩家 " + player.getName() + " 完成潜影盒循环: " + (currentCycle + 1) + "/" + requiredCycles);
             }
-            
             return;
         }
         
-        shulkerBreakCounts.remove(playerId);
+        // 达到循环次数，触发复制
+        shulkerCycleCounts.put(playerId, 0); // 重置循环计数
         
         new BukkitRunnable() {
             @Override
@@ -360,19 +366,35 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         double threshold = config.getDouble("elytra.vertical-threshold", 0.05);
         
         if (Math.abs(verticalVelocity) < threshold) {
+            // 修复：水平方向回弹而不是向上弹起
             double bounceStrength = config.getDouble("elytra.bounce-strength", 0.5);
-            player.setVelocity(new Vector(velocity.getX(), bounceStrength, velocity.getZ()));
             
-            player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 1.0f, 1.0f);
+            // 计算水平方向速度
+            double horizontalSpeed = Math.sqrt(velocity.getX() * velocity.getX() + velocity.getZ() * velocity.getZ());
             
-            if (config.getBoolean("elytra.warn-player", true)) {
-                player.sendMessage(getMessage("elytra.warning"));
-            }
-            
-            elytraBounceTimes.put(playerId, currentTime);
-            
-            if (config.getBoolean("logging.elytra-bounce", true)) {
-                getLogger().info("玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹");
+            if (horizontalSpeed > 0) {
+                // 计算水平方向单位向量
+                Vector horizontalDirection = new Vector(velocity.getX(), 0, velocity.getZ()).normalize();
+                
+                // 应用回弹效果（方向相反）
+                Vector newVelocity = horizontalDirection.multiply(-horizontalSpeed * bounceStrength);
+                
+                // 保持垂直速度不变
+                newVelocity.setY(velocity.getY());
+                
+                player.setVelocity(newVelocity);
+                
+                player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 1.0f, 1.0f);
+                
+                if (config.getBoolean("elytra.warn-player", true)) {
+                    player.sendMessage(getMessage("elytra.warning"));
+                }
+                
+                elytraBounceTimes.put(playerId, currentTime);
+                
+                if (config.getBoolean("logging.elytra-bounce", true)) {
+                    getLogger().info("玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹");
+                }
             }
         }
     }

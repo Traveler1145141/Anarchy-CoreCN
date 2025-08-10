@@ -51,10 +51,13 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
 
     @Override
     public void onEnable() {
-        printLogo();
-        
+        // 先初始化配置
         saveDefaultConfig();
         config = getConfig();
+        
+        // 然后打印LOGO（此时config已初始化）
+        printLogo();
+        
         loadBannedCommands();
         setupMessages();
         
@@ -366,7 +369,6 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         double threshold = config.getDouble("elytra.vertical-threshold", 0.05);
         
         if (Math.abs(verticalVelocity) < threshold) {
-            // 修复：水平方向回弹而不是向上弹起
             double bounceStrength = config.getDouble("elytra.bounce-strength", 0.5);
             
             // 计算水平方向速度

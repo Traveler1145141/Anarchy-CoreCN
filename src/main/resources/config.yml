@@ -13,8 +13,8 @@ dupe:
 shulker_dupe:
   # 是否启用潜影盒复制功能
   enable: true
-  # 需要挖掘多少个潜影盒才会触发复制
-  break: 10
+  # 需要完成多少次放置-挖掘循环才会触发复制
+  cycles: 10
   
 # 禁止使用的命令列表
 # 所有玩家（包括OP）将无法使用这些命令
@@ -78,8 +78,8 @@ logging:
   shulker-dupe: true
   # 潜影盒进度日志
   shulker-progress: true
-  # 潜影盒重置日志
-  shulker-reset: true
+  # 潜影盒放置日志
+  shulker-placed: true
   # 命令禁用日志
   command-block: true
   # 高频红石阻止日志

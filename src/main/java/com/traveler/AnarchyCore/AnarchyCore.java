@@ -2,7 +2,6 @@ package com.traveler.AnarchyCore;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -132,7 +131,6 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     private void checkForUpdates() {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             try {
-                String currentVersion = getDescription().getVersion();
                 String latestVersion = getLatestVersion();
                 
                 if (latestVersion == null) {
@@ -348,17 +346,17 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             return;
         }
         
-        int currentCycle = shulkerCycleCounts.getOrDefault(playerId, 0) + 1;
-        shulkerCycleCounts.put(playerId, currentCycle);
+        int currentCount = shulkerCycleCounts.getOrDefault(playerId, 0) + 1;
+        shulkerCycleCounts.put(playerId, currentCount);
         
-        if (currentCycle < requiredCycles) {
+        if (currentCount < requiredCycles) {
             String msg = getMessage("shulker.progress")
-                    .replace("{current}", String.valueOf(currentCycle))
+                    .replace("{current}", String.valueOf(currentCount))
                     .replace("{required}", String.valueOf(requiredCycles));
             player.sendMessage(msg);
             
             if (config.getBoolean("logging.shulker-progress", true)) {
-                getLogger().info(ANSI_CYAN + "玩家 " + player.getName() + " 挖掘潜影盒进度: " + currentCycle + "/" + requiredCycles + ANSI_RESET);
+                getLogger().info(ANSI_CYAN + "玩家 " + player.getName() + " 挖掘潜影盒进度: " + currentCount + "/" + requiredCycles + ANSI_RESET);
             }
             return;
         }
@@ -387,5 +385,198 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         }.runTaskLater(this, 1L);
     }
     
-    // 其他方法保持不变...
+    @EventHandler
+    public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
+        String fullCommand = event.getMessage().toLowerCase();
+        if (fullCommand.startsWith("/")) {
+            String command = fullCommand.split("\\s+")[0].substring(1);
+            if (bannedCommands.contains(command)) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage(getMessage("errors.command-disabled"));
+                
+                if (config.getBoolean("logging.command-block", true)) {
+                    getLogger().info(ANSI_YELLOW + "阻止玩家 " + event.getPlayer().getName() + " 使用禁用命令: /" + command + ANSI_RESET);
+                }
+            }
+        }
+    }
+    
+    @EventHandler
+    public void onRedstoneActivate(BlockRedstoneEvent event) {
+        if (!config.getBoolean("redstone.enable", true)) return;
+        
+        Block block = event.getBlock();
+        
+        if (isHighFrequencyRedstone(block)) {
+            event.setNewCurrent(0);
+            if (config.getBoolean("redstone.warn-player", true)) {
+                warnNearbyPlayers(block);
+            }
+            
+            if (config.getBoolean("logging.redstone-block", true)) {
+                getLogger().info(ANSI_YELLOW + "在位置 " + block.getLocation() + " 检测并阻止了高频红石" + ANSI_RESET);
+            }
+        }
+    }
+    
+    private boolean isHighFrequencyRedstone(Block block) {
+        long currentTime = System.currentTimeMillis();
+        Long lastActivation = redstoneActivationTimes.get(block);
+        
+        redstoneActivationTimes.put(block, currentTime);
+        
+        if (lastActivation == null) return false;
+        
+        long interval = currentTime - lastActivation;
+        long minInterval = config.getLong("redstone.min-interval", 100);
+        
+        return interval < minInterval;
+    }
+    
+    private void warnNearbyPlayers(Block block) {
+        String warning = getMessage("redstone.warning");
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getWorld().equals(block.getWorld()) && 
+                player.getLocation().distanceSquared(block.getLocation()) <= 100) {
+                player.sendMessage(warning);
+            }
+        }
+    }
+    
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (!config.getBoolean("elytra.enable", false)) return;
+        
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+        
+        if (!player.isGliding()) return;
+        
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) return;
+        
+        long currentTime = System.currentTimeMillis();
+        if (elytraBounceTimes.containsKey(playerId) && 
+            currentTime - elytraBounceTimes.get(playerId) < config.getLong("elytra.bounce-cooldown", 1000)) {
+            return;
+        }
+        
+        Vector velocity = player.getVelocity();
+        double verticalVelocity = velocity.getY();
+        double threshold = config.getDouble("elytra.vertical-threshold", 0.05);
+        
+        if (Math.abs(verticalVelocity) < threshold) {
+            double bounceStrength = config.getDouble("elytra.bounce-strength", 0.5);
+            
+            // 计算水平方向速度
+            double horizontalSpeed = Math.sqrt(velocity.getX() * velocity.getX() + velocity.getZ() * velocity.getZ());
+            
+            if (horizontalSpeed > 0) {
+                // 计算水平方向单位向量
+                Vector horizontalDirection = new Vector(velocity.getX(), 0, velocity.getZ()).normalize();
+                
+                // 应用回弹效果（方向相反）
+                Vector newVelocity = horizontalDirection.multiply(-horizontalSpeed * bounceStrength);
+                
+                // 保持垂直速度不变
+                newVelocity.setY(velocity.getY());
+                
+                player.setVelocity(newVelocity);
+                
+                player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 1.0f, 1.0f);
+                
+                if (config.getBoolean("elytra.warn-player", true)) {
+                    player.sendMessage(getMessage("elytra.warning"));
+                }
+                
+                elytraBounceTimes.put(playerId, currentTime);
+                
+                if (config.getBoolean("logging.elytra-bounce", true)) {
+                    getLogger().info(ANSI_GREEN + "玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹" + ANSI_RESET);
+                }
+            }
+        }
+    }
+    
+    private double getServerTPS() {
+        long currentTime = System.currentTimeMillis();
+        long timeDiff = currentTime - lastLagCheckTime;
+        
+        if (timeDiff < 1000) return lastTPS;
+        
+        lastLagCheckTime = currentTime;
+        return Bukkit.getTPS()[0];
+    }
+    
+    private int performLagCleanup() {
+        int cleanedEntities = 0;
+        
+        if (config.getBoolean("anti-lag.clear-dropped-items", true)) {
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (entity instanceof Item) {
+                        Item item = (Item) entity;
+                        if (item.getPickupDelay() > 10000) {
+                            entity.remove();
+                            cleanedEntities++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (config.getBoolean("anti-lag.clear-mobs", true)) {
+            List<EntityType> mobTypes = Arrays.asList(
+                EntityType.ZOMBIE, EntityType.SKELETON, EntityType.CREEPER, EntityType.SPIDER,
+                EntityType.ENDERMAN, EntityType.WITCH, EntityType.BLAZE, EntityType.GHAST
+            );
+            
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (mobTypes.contains(entity.getType()) && 
+                        entity.getTicksLived() > config.getInt("anti-lag.mob-age-threshold", 6000)) {
+                        entity.remove();
+                        cleanedEntities++;
+                    }
+                }
+            }
+        }
+        
+        if (config.getBoolean("anti-lag.clear-chunk-entities", true)) {
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (entity.getTicksLived() > config.getInt("anti-lag.entity-age-threshold", 12000)) {
+                        entity.remove();
+                        cleanedEntities++;
+                    }
+                }
+            }
+        }
+        
+        if (cleanedEntities > 0 && config.getBoolean("anti-lag.broadcast-cleanup", true)) {
+            String message = getMessage("lagclean.broadcast")
+                .replace("{count}", String.valueOf(cleanedEntities))
+                .replace("{tps}", String.format("%.2f", lastTPS));
+            Bukkit.broadcastMessage(message);
+        }
+        
+        if (cleanedEntities > 0 && config.getBoolean("logging.lagclean", true)) {
+            getLogger().info(ANSI_GREEN + "自动清理了 " + cleanedEntities + " 个可能导致卡顿的实体 (当前TPS: " + lastTPS + ")" + ANSI_RESET);
+        }
+        
+        return cleanedEntities;
+    }
+    
+    private String getMessage(String path) {
+        return getMessage(path, "&c错误: 缺少消息 " + path);
+    }
+    
+    private String getMessage(String path, String defaultValue) {
+        String msg = messages.getString(path, defaultValue);
+        return msg.replace('&', '§');
+    }
+    
+    @Override
+    public void onDisable() {
+        getLogger().info(ANSI_GREEN + "插件已安全关闭" + ANSI_RESET);
+    }
 }

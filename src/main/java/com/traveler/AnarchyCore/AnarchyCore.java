@@ -28,7 +28,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,12 +46,22 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     private FileConfiguration config;
     private FileConfiguration messages;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
-    private final Map<UUID, Integer> shulkerCycleCounts = new HashMap<>();
+    private final Map<UUID, Integer> shulkerBreakCounts = new HashMap<>();
     private final Set<String> bannedCommands = new HashSet<>();
     private final Map<Block, Long> redstoneActivationTimes = new HashMap<>();
     private final Map<UUID, Long> elytraBounceTimes = new HashMap<>();
     private long lastLagCheckTime = 0;
     private double lastTPS = 20.0;
+    
+    // 固定更新URL
+    private static final String UPDATE_URL = "https://raw.githubusercontent.com/Traveler114514/Anarchy-CoreCN/master/version.txt";
+    
+    // ANSI颜色代码
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+    private static final String ANSI_YELLOW = "\u001B[33m";
+    private static final String ANSI_RED = "\u001B[31m";
+    private static final String ANSI_CYAN = "\u001B[36m";
 
     @Override
     public void onEnable() {
@@ -55,19 +69,28 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         saveDefaultConfig();
         config = getConfig();
         
-        // 然后打印LOGO（此时config已初始化）
+        // 打印LOGO
         printLogo();
         
+        // 检查更新
+        if (config.getBoolean("check-updates", true)) {
+            checkForUpdates();
+        }
+        
+        // 加载其他配置
         loadBannedCommands();
         setupMessages();
         
+        // 注册事件和命令
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("dupe").setExecutor(this);
         getCommand("anarchycore").setExecutor(this);
         getCommand("lagclean").setExecutor(this);
         
+        // 启动清理任务
         Bukkit.getScheduler().runTaskTimer(this, this::cleanupOldData, 0L, 1200L);
         
+        // 启动反卡服任务
         if (config.getBoolean("anti-lag.enable", true)) {
             Bukkit.getScheduler().runTaskTimer(this, () -> {
                 double currentTPS = getServerTPS();
@@ -79,23 +102,77 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             }, 0L, config.getLong("anti-lag.check-interval", 600L));
         }
         
-        getLogger().info("插件已成功启用！");
+        getLogger().info(ANSI_GREEN + "插件已成功启用！" + ANSI_RESET);
     }
 
     private void printLogo() {
         if (!config.getBoolean("logging.startup-logo", true)) return;
         
         String[] logo = {
-            "    _                                    _                ____                                  ____   _   _ ",
+            ANSI_GREEN + "    _                                    _                ____                                  ____   _   _ ",
             "   / \\     _ __     __ _   _ __    ___  | |__    _   _   / ___|   ___    _ __    ___           / ___| | \\ | |",
             "  / _ \\   | '_ \\   / _` | | '__|  / __| | '_ \\  | | | | | |      / _ \\  | '__|  / _ \\  _____  | |     |  \\| |",
             " / ___ \\  | | | | | (_| | | |    | (__  | | | | | |_| | | |___  | (_) | | |    |  __/ |_____| | |___  | |\\  |",
             "/_/   \\_\\ |_| |_|  \\__,_| |_|     \\___| |_| |_|  \\__, |  \\____|  \\___/  |_|     \\___|          \\____| |_| \\_|",
-            "                                                 |___/                                                       "
+            "                                                 |___/                                                       " + ANSI_RESET
         };
         
         for (String line : logo) {
             getLogger().info(line);
+        }
+    }
+    
+    private void checkForUpdates() {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                String currentVersion = getDescription().getVersion();
+                String latestVersion = getLatestVersion();
+                
+                if (latestVersion == null) {
+                    getLogger().warning(ANSI_YELLOW + "无法获取最新版本信息" + ANSI_RESET);
+                    return;
+                }
+                
+                // 比较版本号
+                if (isNewerVersion(latestVersion, currentVersion)) {
+                    getLogger().info(ANSI_YELLOW + "发现新版本: " + latestVersion + " (当前版本: " + currentVersion + ")" + ANSI_RESET);
+                    getLogger().info(ANSI_YELLOW + "下载地址: https://github.com/Traveler114514/Anarchy-CoreCN/releases" + ANSI_RESET);
+                } else if (latestVersion.equals(currentVersion)) {
+                    getLogger().info(ANSI_GREEN + "插件已是最新版本 (" + currentVersion + ")" + ANSI_RESET);
+                } else {
+                    getLogger().info(ANSI_RED + "警告: 当前版本 (" + currentVersion + ") 比最新版本 (" + latestVersion + ") 更新" + ANSI_RESET);
+                }
+            } catch (Exception e) {
+                getLogger().warning(ANSI_YELLOW + "检查更新时出错: " + e.getMessage() + ANSI_RESET);
+            }
+        });
+    }
+    
+    private boolean isNewerVersion(String version1, String version2) {
+        // 将版本号转换为数字进行比较
+        try {
+            int v1 = Integer.parseInt(version1.replace(".", ""));
+            int v2 = Integer.parseInt(version2.replace(".", ""));
+            return v1 > v2;
+        } catch (NumberFormatException e) {
+            // 如果无法转换为数字，则使用字符串比较
+            return version1.compareTo(version2) > 0;
+        }
+    }
+    
+    private String getLatestVersion() {
+        try {
+            // 使用固定的URL
+            URL url = new URL(UPDATE_URL);
+            URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                return reader.readLine().trim();
+            }
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -115,7 +192,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     }
 
     private void cleanupOldData() {
-        shulkerCycleCounts.entrySet().removeIf(entry -> 
+        shulkerBreakCounts.entrySet().removeIf(entry -> 
             Bukkit.getPlayer(entry.getKey()) == null
         );
         
@@ -136,12 +213,10 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         Material type = event.getBlock().getType();
         if (type.toString().endsWith("SHULKER_BOX")) {
             UUID playerId = event.getPlayer().getUniqueId();
-            
-            // 玩家放置潜影盒时开始新循环
-            shulkerCycleCounts.put(playerId, shulkerCycleCounts.getOrDefault(playerId, 0) + 1);
+            shulkerBreakCounts.remove(playerId);
             
             if (config.getBoolean("logging.shulker-reset", true)) {
-                getLogger().info("玩家 " + event.getPlayer().getName() + " 放置了潜影盒，开始新循环");
+                getLogger().info(ANSI_CYAN + "玩家 " + event.getPlayer().getName() + " 放置了潜影盒，重置计数" + ANSI_RESET);
             }
         }
     }
@@ -193,7 +268,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         cooldowns.put(playerId, currentTime);
         
         if (config.getBoolean("logging.dupe", true)) {
-            getLogger().info("玩家 " + player.getName() + " 复制了物品: " + handItem.getType());
+            getLogger().info(ANSI_GREEN + "玩家 " + player.getName() + " 复制了物品: " + handItem.getType() + ANSI_RESET);
         }
         
         return true;
@@ -209,7 +284,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         sender.sendMessage(getMessage("reload.success"));
         
         if (config.getBoolean("logging.reload", true)) {
-            getLogger().info("插件配置已重新加载");
+            getLogger().info(ANSI_GREEN + "插件配置已重新加载" + ANSI_RESET);
         }
         
         return true;
@@ -225,7 +300,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         sender.sendMessage(getMessage("lagclean.success").replace("{count}", String.valueOf(cleaned)));
         
         if (config.getBoolean("logging.lagclean-manual", true)) {
-            getLogger().info("管理员 " + sender.getName() + " 手动清理了 " + cleaned + " 个实体");
+            getLogger().info(ANSI_GREEN + "管理员 " + sender.getName() + " 手动清理了 " + cleaned + " 个实体" + ANSI_RESET);
         }
         
         return true;
@@ -247,27 +322,25 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
 
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-        int requiredCycles = config.getInt("shulker_dupe.cycles", 10);
+        int requiredBreaks = config.getInt("shulker_dupe.break", 10);
         
-        int currentCycle = shulkerCycleCounts.getOrDefault(playerId, 0);
+        int currentCount = shulkerBreakCounts.getOrDefault(playerId, 0) + 1;
+        shulkerBreakCounts.put(playerId, currentCount);
         
-        if (currentCycle < requiredCycles) {
-            // 未达到循环次数，继续计数
-            shulkerCycleCounts.put(playerId, currentCycle + 1);
-            
+        if (currentCount < requiredBreaks) {
             String msg = getMessage("shulker.progress")
-                    .replace("{current}", String.valueOf(currentCycle + 1))
-                    .replace("{required}", String.valueOf(requiredCycles));
+                    .replace("{current}", String.valueOf(currentCount))
+                    .replace("{required}", String.valueOf(requiredBreaks));
             player.sendMessage(msg);
             
             if (config.getBoolean("logging.shulker-progress", true)) {
-                getLogger().info("玩家 " + player.getName() + " 完成潜影盒循环: " + (currentCycle + 1) + "/" + requiredCycles);
+                getLogger().info(ANSI_CYAN + "玩家 " + player.getName() + " 挖掘潜影盒进度: " + currentCount + "/" + requiredBreaks + ANSI_RESET);
             }
             return;
         }
         
-        // 达到循环次数，触发复制
-        shulkerCycleCounts.put(playerId, 0); // 重置循环计数
+        // 达到要求，重置计数并复制
+        shulkerBreakCounts.put(playerId, 0);
         
         new BukkitRunnable() {
             @Override
@@ -283,7 +356,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 player.playSound(event.getBlock().getLocation(), Sound.BLOCK_SHULKER_BOX_OPEN, 1.0f, 1.0f);
                 
                 if (config.getBoolean("logging.shulker-dupe", true)) {
-                    getLogger().info("玩家 " + player.getName() + " 成功复制了潜影盒");
+                    getLogger().info(ANSI_GREEN + "玩家 " + player.getName() + " 成功复制了潜影盒" + ANSI_RESET);
                 }
             }
         }.runTaskLater(this, 1L);
@@ -299,7 +372,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 event.getPlayer().sendMessage(getMessage("errors.command-disabled"));
                 
                 if (config.getBoolean("logging.command-block", true)) {
-                    getLogger().info("阻止玩家 " + event.getPlayer().getName() + " 使用禁用命令: /" + command);
+                    getLogger().info(ANSI_YELLOW + "阻止玩家 " + event.getPlayer().getName() + " 使用禁用命令: /" + command + ANSI_RESET);
                 }
             }
         }
@@ -318,7 +391,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             }
             
             if (config.getBoolean("logging.redstone-block", true)) {
-                getLogger().info("在位置 " + block.getLocation() + " 检测并阻止了高频红石");
+                getLogger().info(ANSI_YELLOW + "在位置 " + block.getLocation() + " 检测并阻止了高频红石" + ANSI_RESET);
             }
         }
     }
@@ -395,7 +468,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 elytraBounceTimes.put(playerId, currentTime);
                 
                 if (config.getBoolean("logging.elytra-bounce", true)) {
-                    getLogger().info("玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹");
+                    getLogger().info(ANSI_GREEN + "玩家 " + player.getName() + " 在位置 " + player.getLocation() + " 触发了鞘翅平飞回弹" + ANSI_RESET);
                 }
             }
         }
@@ -464,7 +537,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         }
         
         if (cleanedEntities > 0 && config.getBoolean("logging.lagclean", true)) {
-            getLogger().info("自动清理了 " + cleanedEntities + " 个可能导致卡顿的实体 (当前TPS: " + lastTPS + ")");
+            getLogger().info(ANSI_GREEN + "自动清理了 " + cleanedEntities + " 个可能导致卡顿的实体 (当前TPS: " + lastTPS + ")" + ANSI_RESET);
         }
         
         return cleanedEntities;
@@ -481,6 +554,6 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     
     @Override
     public void onDisable() {
-        getLogger().info("插件已安全关闭");
+        getLogger().info(ANSI_GREEN + "插件已安全关闭" + ANSI_RESET);
     }
 }

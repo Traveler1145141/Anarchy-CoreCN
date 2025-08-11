@@ -1,5 +1,5 @@
 # AnarchyCore 配置文件
-# 版本: 1.0
+# 版本: v1.2
 # 作者: Traveler114514
 
 # 物品复制配置
@@ -61,7 +61,7 @@ elytra:
   enable: false
   # 垂直速度阈值（绝对值小于此值视为平飞）
   vertical-threshold: 0.05
-  # 回弹力度（向上速度）
+  # 回弹力度（水平方向）
   bounce-strength: 0.5
   # 回弹冷却时间（毫秒）
   bounce-cooldown: 1000
@@ -92,3 +92,6 @@ logging:
   lagclean-manual: true
   # 插件重载日志
   reload: true
+
+# 更新检查配置
+check-updates: true

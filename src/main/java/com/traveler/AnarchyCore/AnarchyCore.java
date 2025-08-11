@@ -43,6 +43,9 @@ import java.util.UUID;
 
 public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor {
 
+    // 插件版本号
+    public static final String PLUGIN_VERSION = "1.0.0";
+    
     private FileConfiguration config;
     private FileConfiguration messages;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
@@ -102,7 +105,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
             }, 0L, config.getLong("anti-lag.check-interval", 600L));
         }
         
-        getLogger().info(ANSI_GREEN + "插件已成功启用！" + ANSI_RESET);
+        getLogger().info(ANSI_GREEN + "插件已成功启用！版本: " + PLUGIN_VERSION + ANSI_RESET);
     }
 
     private void printLogo() {
@@ -125,7 +128,6 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     private void checkForUpdates() {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             try {
-                String currentVersion = getDescription().getVersion();
                 String latestVersion = getLatestVersion();
                 
                 if (latestVersion == null) {
@@ -134,13 +136,15 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
                 }
                 
                 // 比较版本号
-                if (isNewerVersion(latestVersion, currentVersion)) {
-                    getLogger().info(ANSI_YELLOW + "发现新版本: " + latestVersion + " (当前版本: " + currentVersion + ")" + ANSI_RESET);
+                int comparison = compareVersions(latestVersion, PLUGIN_VERSION);
+                
+                if (comparison > 0) {
+                    getLogger().info(ANSI_YELLOW + "发现新版本: " + latestVersion + " (当前版本: " + PLUGIN_VERSION + ")" + ANSI_RESET);
                     getLogger().info(ANSI_YELLOW + "下载地址: https://github.com/Traveler114514/Anarchy-CoreCN/releases" + ANSI_RESET);
-                } else if (latestVersion.equals(currentVersion)) {
-                    getLogger().info(ANSI_GREEN + "插件已是最新版本 (" + currentVersion + ")" + ANSI_RESET);
+                } else if (comparison == 0) {
+                    getLogger().info(ANSI_GREEN + "插件已是最新版本 (" + PLUGIN_VERSION + ")" + ANSI_RESET);
                 } else {
-                    getLogger().info(ANSI_RED + "警告: 当前版本 (" + currentVersion + ") 比最新版本 (" + latestVersion + ") 更新" + ANSI_RESET);
+                    getLogger().info(ANSI_RED + "警告: 当前版本 (" + PLUGIN_VERSION + ") 比最新版本 (" + latestVersion + ") 更新" + ANSI_RESET);
                 }
             } catch (Exception e) {
                 getLogger().warning(ANSI_YELLOW + "检查更新时出错: " + e.getMessage() + ANSI_RESET);
@@ -148,21 +152,25 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
         });
     }
     
-    private boolean isNewerVersion(String version1, String version2) {
-        // 将版本号转换为数字进行比较
-        try {
-            int v1 = Integer.parseInt(version1.replace(".", ""));
-            int v2 = Integer.parseInt(version2.replace(".", ""));
-            return v1 > v2;
-        } catch (NumberFormatException e) {
-            // 如果无法转换为数字，则使用字符串比较
-            return version1.compareTo(version2) > 0;
+    private int compareVersions(String version1, String version2) {
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+        
+        int maxLength = Math.max(parts1.length, parts2.length);
+        
+        for (int i = 0; i < maxLength; i++) {
+            int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            
+            if (num1 < num2) return -1;
+            if (num1 > num2) return 1;
         }
+        
+        return 0;
     }
     
     private String getLatestVersion() {
         try {
-            // 使用固定的URL
             URL url = new URL(UPDATE_URL);
             URLConnection connection = url.openConnection();
             connection.setConnectTimeout(5000);

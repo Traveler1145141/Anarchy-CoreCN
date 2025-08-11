@@ -57,7 +57,7 @@ public class AnarchyCore extends JavaPlugin implements Listener, CommandExecutor
     private double lastTPS = 20.0;
     
     // 固定更新URL
-    private static final String UPDATE_URL = "https://raw.githubusercontent.com/Traveler114514/Anarchy-CoreCN/master/version.txt";
+    private static final String UPDATE_URL = "https://raw.githubusercontent.com/Traveler1145141/FileCloud/refs/heads/main/AnarchyCore-CN/version.txt";
     
     // ANSI颜色代码
     private static final String ANSI_RESET = "\u001B[0m";

@@ -1,75 +1,28 @@
-# 错误消息
+# 所有消息都支持颜色代码(&)
 errors:
-  # 只有玩家可以使用此命令
   player-only: "&c只有玩家可以使用此命令。"
-  # 没有权限执行此操作
   no-permission: "&c你没有权限执行此操作。"
-  # 此命令已在服务器上禁用
   command-disabled: "&c此命令已在服务器上禁用。"
   
-# 物品复制消息
 dupe:
-  # 复制命令已被禁用
   disabled: "&c复制命令已被禁用。"
-  # 手上必须持有物品才能复制
   no-item: "&c你手上必须持有物品才能复制。"
-  # 物品已复制成功
   success: "&a物品已复制！"
-  # 复制冷却中
   cooldown: "&c冷却中: 剩余{time}秒。"
   
-# 潜影盒复制消息
 shulker:
-  # 复制进度提示
   progress: "&e复制进度: {current}/{required}"
-  # 潜影盒复制成功
   success: "&a潜影盒已复制！"
   
-# 重载消息
 reload:
-  # 配置重载成功
   success: "&aAnarchyCore配置已重新载入！"
   
-# 清理消息
 lagclean:
-  # 手动清理成功消息
   success: "&a已清理 {count} 个可能导致卡顿的实体。"
-  # 自动清理广播消息
   broadcast: "&e服务器清理了 {count} 个可能导致卡顿的实体 (当前TPS: {tps})"
   
-# 高频红石消息
 redstone:
-  # 高频红石警告消息
   warning: "&c警告: 检测到高频红石！已自动禁用。"
   
-# 鞘翅平飞消息
 elytra:
-  # 平飞警告消息
   warning: "&c警告: 平飞已被禁止！"
-  
-# 日志消息 (新增)
-logging:
-  # 插件启动消息
-  startup: "&aAnarchyCore插件已启动！"
-  # 插件关闭消息
-  shutdown: "&cAnarchyCore插件已关闭。"
-  # 物品复制日志格式
-  dupe: "&7[物品复制] &f玩家 {player} 复制了物品: {item}"
-  # 潜影盒复制日志格式
-  shulker-dupe: "&7[潜影盒复制] &f玩家 {player} 成功复制了潜影盒"
-  # 潜影盒进度日志格式
-  shulker-progress: "&7[潜影盒进度] &f玩家 {player} 挖掘进度: {current}/{required}"
-  # 潜影盒重置日志格式
-  shulker-reset: "&7[潜影盒重置] &f玩家 {player} 放置了潜影盒，重置进度"
-  # 命令禁用日志格式
-  command-block: "&7[命令禁用] &f阻止玩家 {player} 使用命令: /{command}"
-  # 高频红石阻止日志格式
-  redstone-block: "&7[高频红石] &f在位置 {location} 检测并阻止了高频红石"
-  # 鞘翅平飞回弹日志格式
-  elytra-bounce: "&7[鞘翅平飞] &f玩家 {player} 在位置 {location} 触发了回弹"
-  # 自动清理日志格式
-  lagclean: "&7[自动清理] &f清理了 {count} 个实体 (当前TPS: {tps})"
-  # 手动清理日志格式
-  lagclean-manual: "&7[手动清理] &f管理员 {player} 清理了 {count} 个实体"
-  # 插件重载日志格式
-  reload: "&7[配置重载] &f管理员 {player} 重载了插件配置"
